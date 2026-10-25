@@ -1,0 +1,5 @@
+config_name,features,num_features,mae,rmse,r2,fit_time_seconds
+calendar_only,"['hour', 'dayofweek', 'month', 'is_weekend', 'sin_hour', 'cos_hour', 'sin_dow', 'cos_dow']",8,0.5046428892303326,0.6787064374121163,0.41673761705804757,0.14689898490905762
+lag_rolling_only,"['lag_1', 'lag_2', 'lag_3', 'lag_24', 'lag_48', 'lag_168', 'rolling_mean_3', 'rolling_std_3', 'rolling_mean_24', 'rolling_std_24', 'rolling_mean_168', 'rolling_std_168']",12,0.39573111306547004,0.5703806399669292,0.5880641558286412,0.24129676818847656
+full_minus_rolling,"['lag_1', 'lag_2', 'lag_3', 'lag_24', 'lag_48', 'lag_168', 'hour', 'dayofweek', 'month', 'is_weekend', 'sin_hour', 'cos_hour', 'sin_dow', 'cos_dow']",14,0.3723705821578332,0.5385107654300061,0.6328117202776598,0.23096036911010742
+full,"['lag_1', 'lag_2', 'lag_3', 'lag_24', 'lag_48', 'lag_168', 'rolling_mean_3', 'rolling_std_3', 'rolling_mean_24', 'rolling_std_24', 'rolling_mean_168', 'rolling_std_168', 'hour', 'dayofweek', 'month', 'is_weekend', 'sin_hour', 'cos_hour', 'sin_dow', 'cos_dow']",20,0.37064100120596044,0.5368210906581434,0.6351123443649774,0.38707566261291504

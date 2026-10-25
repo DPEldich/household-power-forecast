@@ -13,3 +13,5 @@ build/
 data/
 artifacts/models/
 *.log
+*.egg-info/
+.streamlit/secrets.toml

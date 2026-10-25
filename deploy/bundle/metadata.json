@@ -1,0 +1,132 @@
+{
+  "dataset_stats": {
+    "total_minute_rows": 2075259,
+    "missing_minute_readings": 25979,
+    "duplicate_minute_timestamps": 0,
+    "first_minute_timestamp": "2006-12-16 17:24:00",
+    "last_minute_timestamp": "2010-11-26 21:02:00",
+    "total_hourly_intervals": 34589,
+    "complete_target_hours": 34085,
+    "incomplete_target_hours": 504,
+    "valid_target_ratio": 0.9854288935788834
+  },
+  "splits": {
+    "train_boundary": {
+      "name": "train_70",
+      "start_timestamp": "2006-12-23 17:00:00",
+      "end_timestamp": "2009-09-22 14:00:00",
+      "total_hours": 24094,
+      "valid_target_hours": 23906
+    },
+    "val_boundary": {
+      "name": "val_15",
+      "start_timestamp": "2009-09-22 15:00:00",
+      "end_timestamp": "2010-04-25 17:00:00",
+      "total_hours": 5163,
+      "valid_target_hours": 5065
+    },
+    "test_boundary": {
+      "name": "test_15",
+      "start_timestamp": "2010-04-25 18:00:00",
+      "end_timestamp": "2010-11-26 21:00:00",
+      "total_hours": 5164,
+      "valid_target_hours": 4948
+    },
+    "first85_boundary": {
+      "name": "first_85_refit",
+      "start_timestamp": "2006-12-23 17:00:00",
+      "end_timestamp": "2010-04-25 17:00:00",
+      "total_hours": 29257,
+      "valid_target_hours": 28971
+    },
+    "total_eval_hours": 34421,
+    "warmup_hours": 168
+  },
+  "cv_folds": [
+    {
+      "fold": 1,
+      "train_start": "2006-12-23 17:00:00",
+      "train_end": "2007-08-31 15:00:00",
+      "val_start": "2007-08-31 16:00:00",
+      "val_end": "2008-05-08 14:00:00",
+      "train_total_hours": 6023,
+      "train_valid_hours": 5940,
+      "val_total_hours": 6023,
+      "val_valid_hours": 6014
+    },
+    {
+      "fold": 2,
+      "train_start": "2006-12-23 17:00:00",
+      "train_end": "2008-05-08 14:00:00",
+      "val_start": "2008-05-08 15:00:00",
+      "val_end": "2009-01-14 13:00:00",
+      "train_total_hours": 12046,
+      "train_valid_hours": 11954,
+      "val_total_hours": 6023,
+      "val_valid_hours": 6010
+    },
+    {
+      "fold": 3,
+      "train_start": "2006-12-23 17:00:00",
+      "train_end": "2009-01-14 13:00:00",
+      "val_start": "2009-01-14 14:00:00",
+      "val_end": "2009-09-22 14:00:00",
+      "train_total_hours": 18069,
+      "train_valid_hours": 17964,
+      "val_total_hours": 6025,
+      "val_valid_hours": 5942
+    }
+  ],
+  "cv_folds_count": 3,
+  "val_common_mask_stats": {
+    "calendar_hours": 5163,
+    "invalid_target_hours": 98,
+    "valid_target_hours": 5065,
+    "baseline_excluded_hours": 48,
+    "common_valid_hours": 5017,
+    "valid_target_coverage_pct": 99.05231984205331,
+    "calendar_coverage_pct": 97.17218671315126
+  },
+  "test_common_mask_stats": {
+    "calendar_hours": 5164,
+    "invalid_target_hours": 216,
+    "valid_target_hours": 4948,
+    "baseline_excluded_hours": 48,
+    "common_valid_hours": 4900,
+    "valid_target_coverage_pct": 99.02991107518189,
+    "calendar_coverage_pct": 94.88768396591789
+  },
+  "best_hyperparameters": {
+    "Linear Regression": {
+      "fit_intercept": true
+    },
+    "Ridge": {
+      "alpha": 10.0
+    },
+    "Random Forest": {
+      "n_estimators": 80,
+      "max_depth": 8,
+      "min_samples_split": 10
+    },
+    "Gradient Boosting": {
+      "n_estimators": 100,
+      "learning_rate": 0.05,
+      "max_depth": 4
+    },
+    "XGBoost": {
+      "n_estimators": 100,
+      "learning_rate": 0.05,
+      "max_depth": 5,
+      "subsample": 0.8
+    }
+  },
+  "validation_selected_winner": "XGBoost",
+  "winner_config": {
+    "n_estimators": 100,
+    "learning_rate": 0.05,
+    "max_depth": 5,
+    "subsample": 0.8
+  },
+  "high_load_threshold_train_p90_kW": 2.3799667358398438,
+  "timestamp_created": "2026-10-25T22:16:23.754229"
+}
