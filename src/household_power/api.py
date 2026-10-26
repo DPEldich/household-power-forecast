@@ -43,6 +43,15 @@ class PredictionRequest(BaseModel):
     _hourly = field_validator("target_timestamp")(hourly_timestamp)
 
 
+class IntervalPredictionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target_timestamp: datetime
+    expected_model_version: str = Field(min_length=1, max_length=100)
+    history: list[Observation] | None = Field(default=None, min_length=168, max_length=336)
+    _hourly = field_validator("target_timestamp")(hourly_timestamp)
+
+
+
 def create_app(bundle_dir: Path | None = None, api_key: str | None = None) -> FastAPI:
     location = bundle_dir or Path(os.environ.get("HOUSEHOLD_POWER_BUNDLE_DIR", ROOT / "deploy/bundle"))
     required_key = os.environ.get("HOUSEHOLD_POWER_API_KEY", "") if api_key is None else api_key
@@ -88,6 +97,23 @@ def create_app(bundle_dir: Path | None = None, api_key: str | None = None) -> Fa
         try:
             return service.predict(
                 request.model, pd.Timestamp(request.target_timestamp),
+                None if request.history is None else [item.model_dump() for item in request.history],
+            )
+        except KeyError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
+    @app.post("/v1/predict_interval", dependencies=[Depends(authorize)])
+    def predict_interval(request: IntervalPredictionRequest):
+        service = app.state.service
+        if request.expected_model_version != service.version:
+            raise HTTPException(409, "Model version changed. Refresh the dashboard before predicting.")
+        if not getattr(service, "has_experiments", False):
+            raise HTTPException(501, "Experimental interval forecasting is not available in the current bundle.")
+        try:
+            return service.predict_interval(
+                pd.Timestamp(request.target_timestamp),
                 None if request.history is None else [item.model_dump() for item in request.history],
             )
         except KeyError as exc:

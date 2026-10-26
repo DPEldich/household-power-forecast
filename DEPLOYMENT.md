@@ -122,3 +122,89 @@ Test frontend khởi động backend thật ở cổng tạm, gọi HTTP, thao t
 - [Render: FastAPI](https://render.com/docs/deploy-fastapi)
 - [Render: giới hạn Free](https://render.com/docs/free)
 - [Streamlit: entrypoint và dependencies riêng](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/file-organization)
+
+
+---
+
+## 9. Phụ Lục Triển Khai ML-03: Bundle Serving Schema v2 & Endpoint Dự Báo Khoảng
+
+Bản phát hành ML-03 mở rộng cấu trúc gói triển khai phục vụ suy luận (`deploy/bundle/`) sang schema v2 mà vẫn duy trì tính tương thích ngược hoàn toàn với phiên bản v1.
+
+### 9.1 Cấu Trúc Manifest Schema v2 & Bảo Mật Checksum
+Gói phát hành bao gồm khối mở rộng `experiments` trong `manifest.json`:
+```json
+{
+  "schema_version": 1,
+  "model_version": "uci-hourly-<sha256-hash>",
+  "feature_names": [...],
+  "models": { ... },
+  "files": { ... },
+  "experiments": {
+    "schema_version": 2,
+    "feature_names": [...],
+    "models": {
+      "point": "experiments/models/selected_point_model.joblib",
+      "p10": "experiments/models/quantile_p10.joblib",
+      "p50": "experiments/models/quantile_p50.joblib",
+      "p90": "experiments/models/quantile_p90.joblib"
+    },
+    "metadata": "experiments/metadata.json",
+    "predictions": "experiments/test_predictions.csv",
+    "metrics": {
+      "cv": "experiments/metrics/cv_candidate_metrics.csv",
+      "val": "experiments/metrics/validation_candidate_metrics.csv",
+      "test_point": "experiments/metrics/test_point_comparison.csv",
+      "uncertainty": "experiments/metrics/uncertainty_metrics.csv",
+      "diagnostics_hour": "experiments/metrics/diagnostics_by_hour.csv",
+      "diagnostics_month": "experiments/metrics/diagnostics_by_month.csv",
+      "diagnostics_change": "experiments/metrics/diagnostics_by_load_change.csv"
+    }
+  }
+}
+```
+
+#### Nguyên tắc an toàn Fail-Closed:
+1. **Xác thực toàn bộ mã băm trước khi nạp**: Toàn bộ các file trong `experiments/models/`, `experiments/metrics/`, `experiments/metadata.json`, `experiments/test_predictions.csv` bắt buộc phải được khai báo trong danh mục `manifest["files"]` và vượt qua kiểm tra hàm băm SHA256 trước khi bất kỳ thao tác deserialization (`joblib.load`) nào được thực hiện.
+2. **Ngăn chặn Path Traversal**: Tất cả đường dẫn file phải nằm trong thư mục gốc của bundle. Mọi đường dẫn có dấu hiệu vượt cấp (`../`) đều bị từ chối với lỗi `ValueError`.
+3. **Kiểm tra hợp đồng đặc trưng chặt chẽ**: Danh sách đặc trưng `feature_names` trong `experiments` phải trùng khớp chính xác từng phần tử theo đúng thứ tự với `selected_feature_names` trong metadata và thuộc tính `feature_names_in_` của estimator. Bất kỳ sự sai khác hoặc đảo thứ tự nào đều kích hoạt fail-closed.
+4. **Tương thích ngược với bundle legacy (v1)**: Nếu gói triển khai không chứa khối `experiments`, `ForecastService` tự động chuyển về chế độ thuần v1: 7 mô hình baseline vẫn phục vụ bình thường, endpoint `/v1/predict_interval` trả về HTTP 501 rõ ràng, và frontend hiển thị giao diện thuần baseline không lỗi.
+
+### 9.2 API Endpoint Mở Rộng: `POST /v1/predict_interval`
+
+#### Yêu cầu (Request)
+- **Header**: `X-API-Key` (nếu đã cấu hình)
+- **Body JSON** (Mô hình `IntervalPredictionRequest`):
+```json
+{
+  "target_timestamp": "2010-05-01T12:00:00",
+  "expected_model_version": "<model_version từ dashboard>",
+  "history": null
+}
+```
+*Lưu ý*: Có thể truyền danh sách `history` gồm tối thiểu 168 giờ đo đạc liên tục gần nhất kết thúc đúng 1 giờ trước `target_timestamp` để thực hiện suy luận cho chuỗi thời gian mới.
+
+#### Phản hồi Thực Tế (Actual TestClient Response Example)
+```json
+{
+  "model_version": "uci-hourly-9c37e566d5f6e848",
+  "target_timestamp": "2010-04-27T20:00:00",
+  "point_model": "baseline (ML-03)",
+  "point_prediction_kw": 0.7557486891746521,
+  "p10_kw": 0.3103722333908081,
+  "p50_kw": 0.4541477560997009,
+  "p90_kw": 1.7725657224655151,
+  "nominal_coverage_pct": 80.0,
+  "stored_point_prediction_kw": 0.7557487,
+  "stored_p10_kw": 0.3103722333908081,
+  "stored_p50_kw": 0.4541477560997009,
+  "stored_p90_kw": 1.7725657224655151,
+  "unit": "kW",
+  "mode": "historical_replay"
+}
+```
+
+### 9.3 Điều Kiện Trùng Khớp Số Học & Phạm Vi Triển Khai (Parity & Scope)
+- **Yêu cầu về ngữ cảnh lịch sử tương đương (Equivalent Historical Context)**:
+  Tuyên bố trùng khớp số học giữa `historical_replay` và `provided_history` đòi hỏi ngữ cảnh lịch sử tương đương. Để tính toán đầy đủ các đặc trưng trễ (`lag_168`, `rolling_mean_168`, `rolling_std_168`, `rolling_max_24`) và thực hiện bù khuyết có giới hạn (`bounded ffill(limit=3)`), cửa sổ lịch sử cần cung cấp đủ quan sát. Nếu các giờ đầu của cửa sổ 168 giờ bị khuyết thiếu, việc bù khuyết trong chế độ replay có thể sử dụng các quan sát nằm ngoài cửa sổ này. Cung cấp 336 giờ lịch sử tạo vùng đệm an toàn cho 168 giờ đặc trưng, nhưng vẫn không áp dụng cho các chuỗi có tiền tố bị khuyết thiếu hoàn toàn tùy ý.
+- **Bằng chứng kiểm chứng**: Ca kiểm thử tự động `test_predict_interval_provided_history_parity` là bằng chứng kiểm chứng cụ thể cho dòng kiểm tra đã chọn (`target_timestamp = 2010-04-27T20:00:00`), không phải là tuyên bố bao quát cho mọi lịch sử bất kỳ.
+- **Phạm vi môi trường**: Toàn bộ thử nghiệm ML-03 và gói serving bundle chỉ được thực thi, kiểm thử và thẩm định tại môi trường cục bộ (local test suite); không thực hiện xuất bản lên hạ tầng đám mây (no cloud publication performed).

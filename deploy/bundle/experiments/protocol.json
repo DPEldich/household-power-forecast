@@ -1,0 +1,201 @@
+{
+  "protocol_name": "ML-03: Load Dynamics & Quantile Uncertainty",
+  "candidate_definitions": {
+    "baseline": {
+      "name": "baseline",
+      "description": "Baseline XGBoost (20 features, unweighted)",
+      "feature_type": "baseline",
+      "features": [
+        "lag_1",
+        "lag_2",
+        "lag_3",
+        "lag_24",
+        "lag_48",
+        "lag_168",
+        "rolling_mean_3",
+        "rolling_std_3",
+        "rolling_mean_24",
+        "rolling_std_24",
+        "rolling_mean_168",
+        "rolling_std_168",
+        "hour",
+        "dayofweek",
+        "month",
+        "is_weekend",
+        "sin_hour",
+        "cos_hour",
+        "sin_dow",
+        "cos_dow"
+      ],
+      "weighted": false,
+      "weight_multiplier": 1.0
+    },
+    "enhanced_features": {
+      "name": "enhanced_features",
+      "description": "Enhanced load-dynamics features (26 features, unweighted)",
+      "feature_type": "extended",
+      "features": [
+        "lag_1",
+        "lag_2",
+        "lag_3",
+        "lag_24",
+        "lag_48",
+        "lag_168",
+        "rolling_mean_3",
+        "rolling_std_3",
+        "rolling_mean_24",
+        "rolling_std_24",
+        "rolling_mean_168",
+        "rolling_std_168",
+        "hour",
+        "dayofweek",
+        "month",
+        "is_weekend",
+        "sin_hour",
+        "cos_hour",
+        "sin_dow",
+        "cos_dow",
+        "diff_1h",
+        "diff_24h",
+        "rolling_max_3",
+        "rolling_max_24",
+        "trend_3h",
+        "missing_lag1"
+      ],
+      "weighted": false,
+      "weight_multiplier": 1.0
+    },
+    "enhanced_weighted": {
+      "name": "enhanced_weighted",
+      "description": "Enhanced load-dynamics with mild high-load training weight (w=1.5)",
+      "feature_type": "extended",
+      "features": [
+        "lag_1",
+        "lag_2",
+        "lag_3",
+        "lag_24",
+        "lag_48",
+        "lag_168",
+        "rolling_mean_3",
+        "rolling_std_3",
+        "rolling_mean_24",
+        "rolling_std_24",
+        "rolling_mean_168",
+        "rolling_std_168",
+        "hour",
+        "dayofweek",
+        "month",
+        "is_weekend",
+        "sin_hour",
+        "cos_hour",
+        "sin_dow",
+        "cos_dow",
+        "diff_1h",
+        "diff_24h",
+        "rolling_max_3",
+        "rolling_max_24",
+        "trend_3h",
+        "missing_lag1"
+      ],
+      "weighted": true,
+      "weight_multiplier": 1.5
+    }
+  },
+  "fixed_model_config": {
+    "n_estimators": 100,
+    "learning_rate": 0.05,
+    "max_depth": 5,
+    "subsample": 0.8,
+    "random_state": 42,
+    "n_jobs": 4
+  },
+  "raw_objectives": {
+    "point_model": "reg:squarederror",
+    "quantile_models": "reg:quantileerror"
+  },
+  "preprocessing_policy": {
+    "imputer": "SimpleImputer(strategy='median')",
+    "description": "Fitted strictly on training split feature matrix X_train; transforms val/test using learned training medians"
+  },
+  "quantile_alpha_levels": [
+    0.1,
+    0.5,
+    0.9
+  ],
+  "quantile_raw_to_repaired_policy": "clip >= 0.0 kW, deterministic row-wise sort enforcing 0 <= P10 <= P50 <= P90",
+  "splits": {
+    "train_boundary": {
+      "name": "train_70",
+      "start_timestamp": "2006-12-23 17:00:00",
+      "end_timestamp": "2009-09-22 14:00:00",
+      "total_hours": 24094,
+      "valid_target_hours": 23906
+    },
+    "val_boundary": {
+      "name": "val_15",
+      "start_timestamp": "2009-09-22 15:00:00",
+      "end_timestamp": "2010-04-25 17:00:00",
+      "total_hours": 5163,
+      "valid_target_hours": 5065
+    },
+    "test_boundary": {
+      "name": "test_15",
+      "start_timestamp": "2010-04-25 18:00:00",
+      "end_timestamp": "2010-11-26 21:00:00",
+      "total_hours": 5164,
+      "valid_target_hours": 4948
+    },
+    "first85_boundary": {
+      "name": "first_85_refit",
+      "start_timestamp": "2006-12-23 17:00:00",
+      "end_timestamp": "2010-04-25 17:00:00",
+      "total_hours": 29257,
+      "valid_target_hours": 28971
+    }
+  },
+  "cv_folds_count": 3,
+  "cv_folds": [
+    {
+      "fold": 1,
+      "train_start": "2006-12-23 17:00:00",
+      "train_end": "2007-08-31 15:00:00",
+      "val_start": "2007-08-31 16:00:00",
+      "val_end": "2008-05-08 14:00:00",
+      "train_total_hours": 6023,
+      "train_valid_hours": 5940,
+      "val_total_hours": 6023,
+      "val_valid_hours": 6014
+    },
+    {
+      "fold": 2,
+      "train_start": "2006-12-23 17:00:00",
+      "train_end": "2008-05-08 14:00:00",
+      "val_start": "2008-05-08 15:00:00",
+      "val_end": "2009-01-14 13:00:00",
+      "train_total_hours": 12046,
+      "train_valid_hours": 11954,
+      "val_total_hours": 6023,
+      "val_valid_hours": 6010
+    },
+    {
+      "fold": 3,
+      "train_start": "2006-12-23 17:00:00",
+      "train_end": "2009-01-14 13:00:00",
+      "val_start": "2009-01-14 14:00:00",
+      "val_end": "2009-09-22 14:00:00",
+      "train_total_hours": 18069,
+      "train_valid_hours": 17964,
+      "val_total_hours": 6025,
+      "val_valid_hours": 5942
+    }
+  ],
+  "selection_rules": {
+    "cv_overall_mae_ratio_max": 1.01,
+    "cv_high_load_non_regression_folds_min": 2,
+    "val_confirmation_overall_mae_ratio_max": 1.01,
+    "val_confirmation_high_load_mae_max_ratio": 1.0,
+    "fallback_policy": "Revert to baseline if candidate fails confirmation"
+  },
+  "disclaimer": "Test set is a historical reused benchmark; not fresh unseen independent data.",
+  "protocol_declared_timestamp": "2026-10-26T16:13:25.282480"
+}

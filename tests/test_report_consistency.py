@@ -115,3 +115,39 @@ def test_high_load_table_matches_high_load_metrics_csv():
         nl_mae = f"{r['normal_load_mae']:.4f}"
         assert hl_mae in report_text, f"High load MAE {hl_mae} for {r['model_name']} not in REPORT.md"
         assert nl_mae in report_text, f"Normal load MAE {nl_mae} for {r['model_name']} not in REPORT.md"
+
+
+def test_ml03_uncertainty_table_matches_uncertainty_metrics_csv():
+    """Assert all six subsets in ML-03 uncertainty table match uncertainty_metrics.csv exactly."""
+    unc_path = ROOT_DIR / "artifacts/experimental/ml03/metrics/uncertainty_metrics.csv"
+    if not unc_path.exists():
+        pytest.skip("ML-03 uncertainty metrics CSV not present")
+
+    unc_df = pd.read_csv(unc_path)
+    ml03_results_text = (ROOT_DIR / "ML03_RESULTS.md").read_text(encoding="utf-8")
+    report_text = REPORT_PATH.read_text(encoding="utf-8")
+    readme_text = README_PATH.read_text(encoding="utf-8")
+
+    for _, r in unc_df.iterrows():
+        split = str(r["split"])
+        subset = str(r["subset"])
+        cnt = str(int(r["count"]))
+        cov = f"{float(r['coverage_pct']):.2f}%"
+        w = f"{float(r['mean_width_kw']):.4f}"
+        p10 = f"{float(r['pinball_p10']):.4f}"
+        p50 = f"{float(r['pinball_p50']):.4f}"
+        p90 = f"{float(r['pinball_p90']):.4f}"
+        mp = f"{float(r['mean_pinball']):.4f}"
+
+        below = f"{float(r['below_lower_pct']):.2f}%"
+        above = f"{float(r['above_upper_pct']):.2f}%"
+        expected_row = (
+            f"| {split} | {subset} | {cnt} | {cov} | {below} | {above} | "
+            f"{w} | {p10} | {p50} | {p90} | {mp} |"
+        )
+        for name, document in [
+            ("ML03_RESULTS.md", ml03_results_text),
+            ("REPORT.md", report_text),
+            ("README.md", readme_text),
+        ]:
+            assert expected_row in document, f"Incorrect {split}/{subset} row in {name}"

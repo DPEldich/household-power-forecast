@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "model_version": "uci-hourly-1592c3f73c2fbedd",
+  "model_version": "uci-hourly-9c37e566d5f6e848",
   "dataset": "UCI-235",
   "unit": "kW",
   "forecast_horizon_hours": 1,
@@ -52,6 +52,64 @@
     "models/ridge.joblib": "009bc70d6a5d810ff3578f83a6f2d4e3611a3b4435bf2869eba4ff30ce25bd98",
     "models/random_forest.joblib": "bdb3cb9f61bfe88fb8d45b4416e1e243f38ff13491a0434d189cb09beb718ca0",
     "models/gradient_boosting.joblib": "24ec5f92de9379fac7c2b28510ab72738805686c6fd413ea5903f65e0ce893d2",
-    "models/xgboost.joblib": "e3d3aa56268ecc8ffed0075709e992f098ca36e50b0bb95d1a553f0312a3167f"
+    "models/xgboost.joblib": "e3d3aa56268ecc8ffed0075709e992f098ca36e50b0bb95d1a553f0312a3167f",
+    "experiments/metadata.json": "d952719a7d2adc6931f67a485a93fc37236b0aa5df52800622f71165d12ddd54",
+    "experiments/test_predictions.csv": "ccd4d8349b7f957c32d3e5f74b7a7d11d26b757ca9fe11f762469a9c52df59d8",
+    "experiments/protocol.json": "9a5e92fca48978acf9c26aeb686d84d4178db2d539152f60be5bba9add8e835d",
+    "experiments/selection_frozen.json": "95aed1f051297bbd0434a542139439215a8883594b293a387808453a62e7d64e",
+    "experiments/val_predictions.csv": "71aefc3e53c9cda5ae7667e476fef9e34296cb1496ab764dab5506f0b0566511",
+    "experiments/metrics/cv_candidate_metrics.csv": "d0da9d0712e5725de2637e89a5593c579eee95dc70306dadf18e1810446418d4",
+    "experiments/metrics/validation_candidate_metrics.csv": "26ffbecd45769afde39f6e1fad3158871bed26c486d0ef464577ac3827c3ae5c",
+    "experiments/metrics/test_point_comparison.csv": "fc220a6e59efedad4ea988402b3b77389b98b1178f24f527ceef655bd7238f25",
+    "experiments/metrics/uncertainty_metrics.csv": "522c576498efb6117c0fb3a164faad12cab75a1276698fa7147327e6707d74e2",
+    "experiments/metrics/diagnostics_by_hour.csv": "573100693b142bf1c2f42d5ae4b1f076b76ba85dfb1b0bada4fa492a8a46af57",
+    "experiments/metrics/diagnostics_by_month.csv": "4e03c2de03c2c9107c108ef5cc65dceaa4b7a6ec7487eb9462974a9f7ef3fb5a",
+    "experiments/metrics/diagnostics_by_load_change.csv": "0b5ebe69f57106ad0571eb35a2a5974849cc0cfdd870de6ed53c167e6a99641c",
+    "experiments/models/selected_point_model.joblib": "e3d3aa56268ecc8ffed0075709e992f098ca36e50b0bb95d1a553f0312a3167f",
+    "experiments/models/quantile_p10.joblib": "7dc696c7c7559344a76b20dad351775e9b1ce60a9fcd3cf606141f9dc5035898",
+    "experiments/models/quantile_p50.joblib": "71ee4128f1a42db429317541b9777bce2bd4c1a673cc7b08a01e1a065565c769",
+    "experiments/models/quantile_p90.joblib": "c26ecd35877ec49f28ba0982da501e32be32923e54282264d05ee4c31116c4cb"
+  },
+  "experiments": {
+    "schema_version": 2,
+    "feature_names": [
+      "lag_1",
+      "lag_2",
+      "lag_3",
+      "lag_24",
+      "lag_48",
+      "lag_168",
+      "rolling_mean_3",
+      "rolling_std_3",
+      "rolling_mean_24",
+      "rolling_std_24",
+      "rolling_mean_168",
+      "rolling_std_168",
+      "hour",
+      "dayofweek",
+      "month",
+      "is_weekend",
+      "sin_hour",
+      "cos_hour",
+      "sin_dow",
+      "cos_dow"
+    ],
+    "models": {
+      "point": "experiments/models/selected_point_model.joblib",
+      "p10": "experiments/models/quantile_p10.joblib",
+      "p50": "experiments/models/quantile_p50.joblib",
+      "p90": "experiments/models/quantile_p90.joblib"
+    },
+    "metadata": "experiments/metadata.json",
+    "predictions": "experiments/test_predictions.csv",
+    "metrics": {
+      "cv": "experiments/metrics/cv_candidate_metrics.csv",
+      "val": "experiments/metrics/validation_candidate_metrics.csv",
+      "test_point": "experiments/metrics/test_point_comparison.csv",
+      "uncertainty": "experiments/metrics/uncertainty_metrics.csv",
+      "diagnostics_hour": "experiments/metrics/diagnostics_by_hour.csv",
+      "diagnostics_month": "experiments/metrics/diagnostics_by_month.csv",
+      "diagnostics_change": "experiments/metrics/diagnostics_by_load_change.csv"
+    }
   }
 }

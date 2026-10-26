@@ -251,3 +251,73 @@ Ngưỡng phụ tải cao được xác định tại **phân vị 90 (P90) củ
 - **Kho lưu trữ**: UCI Machine Learning Repository (Dataset 235).
 - **DOI**: [10.24432/C58885](https://doi.org/10.24432/C58885).
 - **Bản quyền dữ liệu**: Creative Commons Attribution 4.0 International (CC BY 4.0).
+
+
+---
+
+## 13. Phụ Lục Báo Cáo Kỹ Thuật ML-03: Động Lực Phụ Tải & Ước Lượng Độ Bất Định Phân Vị
+
+Thử nghiệm mở rộng ML-03 tập trung vào hai mục tiêu cốt lõi:
+1. Thử nghiệm các đặc trưng động lực phụ tải quá khứ (load dynamics) nhằm cải thiện khả năng dự báo ở phân khúc phụ tải cao (High-Load Forecasting).
+2. Xây dựng mô hình phân vị P10/P50/P90 và đánh giá trung thực khoảng bất định danh định 80% (Uncertainty Quantification).
+
+> **Lưu ý phương pháp luận quan trọng**: Toàn bộ quá trình kiểm định trên tập Held-Out Test (15% cuối) là việc tái sử dụng tập chuẩn đối chiếu lịch sử (reused historical benchmark) đã có từ ML-01; đây không phải là bằng chứng kiểm định độc lập mới chưa từng thấy (unseen independent evidence). Toàn bộ thử nghiệm ML-03 chỉ được thực thi và kiểm thử tại môi trường cục bộ (local execution); không thực hiện xuất bản lên hạ tầng đám mây (no cloud publication performed).
+
+### 13.1 Thiết kế Đặc trưng Động Lực Phụ Tải (Causal Feature Engineering)
+Toàn bộ đặc trưng mới tuân thủ nguyên tắc nhân quả nghiêm ngặt: tại thời điểm phát dự báo $s$, chỉ sử dụng các quan sát đo đạc trong quá khứ ($< s$):
+- $\text{diff\_1h} = x_{s-1} - x_{s-2}$: Đo lường gia tốc biến thiên phụ tải tức thời trong 1 giờ gần nhất.
+- $\text{diff\_24h} = x_{s-1} - x_{s-25}$: Đo lường độ lệch so với cùng khung giờ ngày hôm trước.
+- $\text{rolling\_max\_3} = \max(x_{s-3}, x_{s-2}, x_{s-1})$: Nắm bắt đỉnh phụ tải ngắn hạn trong 3 giờ gần nhất.
+- $\text{rolling\_max\_24} = \max_{k=1..24}(x_{s-k})$: Nắm bắt đỉnh phụ tải cao nhất trong 24 giờ qua.
+- $\text{trend\_3h} = x_{s-1} - \frac{1}{3}\sum_{k=1}^3 x_{s-k}$: Mức độ lệch của công suất tức thời so với trung bình trượt 3 giờ gần nhất.
+- $\text{missing\_lag1} = \mathbf{1}(x_{s-1} \text{ bị khuyết thiếu})$: Chỉ báo trạng thái mất tín hiệu đo đạc tại bước trễ gần nhất.
+
+Hợp đồng đặc trưng mở rộng gồm 26 biến (20 biến ML-01 gốc + 6 biến động lực phụ tải).
+
+### 13.2 Cơ Chế Kiểm Định Expanding CV & Quyết Định Xác Nhận Trung Thực
+Giao thức thực nghiệm được khai báo trước tại `metadata/protocol.json` trước khi thực hiện CV:
+1. **Expanding Temporal Cross-Validation (3 Folds trên 70% dữ liệu Train đầu)**:
+   - Ngưỡng phụ tải cao P90 được tính độc lập trên từng fold train ($P90_{\text{fold1}} = 2.4883$, $P90_{\text{fold2}} = 2.5970$, $P90_{\text{fold3}} = 2.4747$ kW).
+   - Ứng viên `enhanced_features` đạt MAE tổng thể trung bình 0.3737 kW (tỷ lệ 0.9939 so với baseline 0.3760 kW, thỏa mãn điều kiện $\le 1.01$).
+   - MAE phụ tải cao trung bình đạt 1.0426 kW (cải thiện so với baseline 1.0469 kW), đạt tiêu chí không thoái hóa ở 2/3 fold.
+   - Ứng viên `enhanced_weighted` (gán trọng số $w = 1.5$ cho mẫu tải cao) có MAE tổng thể 0.3803 kW (tỷ lệ 1.0115 > 1.01), bị loại vì vi phạm ràng buộc sai số tổng thể.
+2. **Xác nhận trên tập Validation (15% theo thời gian)**:
+   - Ngưỡng phụ tải cao P90 tính trên toàn bộ 70% Train: **2.3800 kW**.
+   - Kết quả: `enhanced_features` đạt MAE tổng thể 0.3696 kW (tốt hơn Baseline 0.3706 kW), nhưng MAE phụ tải cao là **0.8409 kW** (kém hơn Baseline **0.8360 kW**).
+   - **Quyết định bảo toàn**: Theo đúng quy tắc giao thức, ứng viên không vượt qua xác nhận phụ tải cao nên không được thăng cấp. Hệ thống ghi nhận quyết định đóng băng tại `metadata/selection_frozen.json` và giữ nguyên mô hình Baseline XGBoost cho dự báo điểm.
+
+### 13.3 Hồi Quy Phân Vị & Đánh Giá Khoảng Bất Định
+- Sử dụng XGBoost `reg:quantileerror` huấn luyện 3 mô hình riêng biệt tại các mức phân vị $\alpha = 0.1$, $\alpha = 0.5$, và $\alpha = 0.9$ trên cùng cấu hình siêu tham số cố định.
+- Hàm mất mát Pinball Loss:
+  $$L_\alpha(y, \hat{q}) = \frac{1}{N} \sum_{i=1}^N \max\left(\alpha (y_i - \hat{q}_i), (\alpha - 1)(y_i - \hat{q}_i)\right)$$
+- Thuật toán `repair_and_clip_quantiles` giải quyết triệt để hiện tượng bắt chéo phân vị (quantile crossing) và loại bỏ công suất âm:
+  $$\hat{P}_{10} = \min(\hat{q}_{10}^+, \hat{q}_{50}^+, \hat{q}_{90}^+), \quad \hat{P}_{90} = \max(\hat{q}_{10}^+, \hat{q}_{50}^+, \hat{q}_{90}^+)$$
+  với $\hat{q}^+ = \max(0, \hat{q})$.
+
+### 13.4 Bảng Số Liệu Kiểm Định Bất Định Toàn Diện (Validation & Test Sets)
+
+| Split | Phân khúc (Subset) | Số mẫu (Count) | Độ phủ (%) (Coverage) | Dưới P10 (%) | Vượt P90 (%) | Độ rộng TB (kW) | Pinball P10 | Pinball P50 | Pinball P90 | Pinball TB (kW) |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| validation | overall | 5017 | 88.18% | 4.09% | 7.73% | 1.5419 | 0.0759 | 0.1995 | 0.1195 | 0.1316 |
+| validation | high_load | 583 | 44.77% | 0.00% | 55.23% | 1.9478 | 0.2099 | 0.6268 | 0.2928 | 0.3765 |
+| validation | normal_load | 4434 | 93.89% | 4.62% | 1.49% | 1.4885 | 0.0583 | 0.1433 | 0.0967 | 0.0994 |
+| test | overall | 4900 | 90.49% | 5.47% | 4.04% | 1.4623 | 0.0579 | 0.1633 | 0.1099 | 0.1104 |
+| test | high_load | 226 | 38.05% | 0.00% | 61.95% | 1.8995 | 0.2130 | 0.6550 | 0.3219 | 0.3966 |
+| test | normal_load | 4674 | 93.03% | 5.73% | 1.24% | 1.4412 | 0.0504 | 0.1395 | 0.0997 | 0.0965 |
+
+#### Nhận xét số liệu chuyên sâu
+1. **Thiếu phủ ở phân khúc phụ tải đỉnh (High-Load Under-Coverage)**:
+   Mặc dù khoảng bất định bao phủ được 90.49% trên toàn bộ tập dữ liệu Test (vượt mức thiết kế 80%), nhưng tại 226 giờ phụ tải cao đỉnh nhọn, độ phủ thực tế giảm xuống chỉ còn 38.05%, với 61.95% số giờ công suất thực tế vượt ra ngoài biên trên P90 (tương tự 44.77% độ phủ và 55.23% vượt P90 trên tập Validation).
+   *Giả thuyết phân tích quan sát*: Sự xuất hiện đột ngột của các thiết bị công suất lớn có thể tạo phân phối đuôi rất nặng, khiến mô hình phân vị toàn dải bị co cụm về vùng mật độ tập trung. Đây là một giả thuyết quan sát, không phải là kết luận nhân quả đã được chứng minh thực nghiệm.
+2. **Không tuyên bố độ phủ tin cậy tuyệt đối**:
+   Báo cáo khẳng định rõ ràng: mức 80% là mục tiêu danh định của hàm mất mát phân vị, không phải cam kết toán học bảo đảm an toàn. Độ phủ thực nghiệm cao ở tải thường (93.03%) không đồng nghĩa với bảo đảm hiệu chuẩn hoàn hảo (calibrated uncertainty). Không khuyến cáo sử dụng khoảng dự báo này để điều khiển bảo vệ rơ-le hoặc ngắt tải tự động mà không có hệ số dự phòng mở rộng.
+3. **Phân biệt P50 và Điểm dự báo**:
+   Mô hình điểm sử dụng hàm mục tiêu sai số bình phương squared-error (`reg:squarederror`) nhằm ước lượng kỳ vọng có điều kiện $E[Y|X]$. Mô hình P50 tối ưu hóa Pinball Loss ($\alpha = 0.5$, `reg:quantileerror`) nhằm ước lượng trung vị có điều kiện $\text{Median}[Y|X]$. Đây là hai mục tiêu thống kê khác biệt về bản chất; do đó P50 không thể thay thế cho dự báo điểm.
+
+### 13.5 Kiến Trúc Bundle Serving v2 & Giao Diện
+- Release bundle `deploy/bundle/` được mở rộng với schema v2:
+  - Bổ sung cấu trúc `experiments` trong `manifest.json`.
+  - Mọi tệp mô hình và số liệu đều được bảo vệ bởi mã băm SHA256 trong `manifest["files"]`.
+  - Dịch vụ suy luận `ForecastService` kiểm tra toàn vẹn thứ tự đặc trưng khớp chính xác với `feature_names_in_` của estimator trước khi phục vụ suy luận.
+- Endpoint `POST /v1/predict_interval` trả về kết quả dự báo điểm kèm khoảng $[P10, P90]$ và trung vị $P50$.
+- Đảm bảo tính tương thích ngược 100%: bundle legacy (v1) không có thí nghiệm vẫn hoạt động bình thường, và endpoint `/v1/predict` giữ nguyên vẹn độ chuẩn xác của 7 mô hình baseline.

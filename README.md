@@ -164,3 +164,50 @@ Sau khi dữ liệu gốc đã được tải về lần đầu tại `data/raw/
 - **Kho lưu trữ**: UCI Machine Learning Repository (Dataset ID: 235).
 - **DOI định danh**: [10.24432/C58885](https://doi.org/10.24432/C58885).
 - **Bản quyền tập dữ liệu**: Creative Commons Attribution 4.0 International (CC BY 4.0).
+
+
+---
+
+## 8. Phụ Lục ML-03: Thử Nghiệm Mở Rộng Động Lực Phụ Tải & Dự Báo Khoảng Bất Định
+
+Phiên bản mở rộng ML-03 bổ sung phân tích động lực phụ tải (load dynamics) và ước lượng dải bất định phân vị P10/P50/P90 nhằm định lượng rủi ro trong dự báo tiêu thụ điện gia đình.
+
+> **Lưu ý phương pháp luận quan trọng**: Việc đánh giá trên tập kiểm định Held-Out Test (15% cuối) là việc tái sử dụng tập chuẩn đối chiếu lịch sử (reused historical benchmark) đã có từ ML-01, hoàn toàn không phải là bằng chứng kiểm định độc lập mới chưa từng thấy (unseen independent evidence). Toàn bộ thử nghiệm ML-03 chỉ được thực thi và kiểm thử tại môi trường cục bộ (local execution); không thực hiện xuất bản lên hạ tầng đám mây (no cloud publication performed).
+
+### 8.1 Đặc trưng động lực phụ tải quá khứ (Causal Load Dynamics)
+Bổ sung 6 đặc trưng quá khứ nghiêm ngặt (chỉ dùng dữ liệu $< s$):
+- `diff_1h`: Tốc độ biến thiên công suất 1 giờ gần nhất ($x_{s-1} - x_{s-2}$).
+- `diff_24h`: Tốc độ biến thiên công suất so với cùng giờ hôm trước ($x_{s-1} - x_{s-25}$).
+- `rolling_max_3`, `rolling_max_24`: Mức công suất đỉnh trong 3 giờ và 24 giờ qua.
+- `trend_3h`: Độ lệch xu hướng giữa mức công suất tức thời $x_{s-1}$ và mức trung bình 3 giờ trước.
+- `missing_lag1`: Chỉ báo khuyết thiếu dữ liệu tại bước trễ gần nhất.
+
+### 8.2 Giao thức kiểm định trung thực & Bảo toàn mô hình Baseline
+- **Expanding CV (3 folds trên 70% Train)**: Ngưỡng phụ tải cao P90 tính riêng theo từng fold train là $2.4883$, $2.5970$, và $2.4747$ kW. Ứng viên `enhanced_features` giảm MAE phụ tải cao (1.0426 vs 1.0469 kW) và giữ MAE tổng thể (0.3737 vs 0.3760 kW), được chọn tại vòng CV.
+- **Xác nhận trên tập Validation (15% theo thời gian)**: Ngưỡng P90 tính trên 70% Train là **2.3800 kW**. Mặc dù MAE tổng thể cải thiện (0.3696 vs 0.3706 kW), nhưng MAE phụ tải cao tăng nhẹ (0.8409 vs 0.8360 kW).
+- **Quyết định bảo toàn**: Tuân thủ giao thức khoa học đã cố định trước (`protocol.json` và `selection_frozen.json`), hệ thống từ chối thăng cấp ứng viên và bảo toàn mô hình Baseline XGBoost cho dự báo điểm.
+
+### 8.3 Dự báo khoảng phân vị P10 – P50 – P90
+- Huấn luyện 3 mô hình XGBoost với hàm mất mát `reg:quantileerror` tại $\alpha \in [0.1, 0.5, 0.9]$.
+- Thuật toán `repair_and_clip_quantiles` bảo đảm không có công suất âm và triệt tiêu lỗi bắt chéo phân vị ($0 \le P10 \le P50 \le P90$).
+- Mô hình điểm sử dụng hàm mất mát sai số bình phương `reg:squarederror` (ước lượng kỳ vọng có điều kiện $E[Y|X]$), trong khi P50 tối ưu hóa Pinball Loss ($\alpha = 0.5$) để ước lượng trung vị có điều kiện $\text{Median}[Y|X]$. Hai mục tiêu thống kê này có bản chất toán học khác nhau.
+
+#### Bảng số liệu bất định phân vị (Validation & Test Set)
+
+| Split | Phân khúc (Subset) | Số mẫu (Count) | Độ phủ (%) (Coverage) | Dưới P10 (%) | Vượt P90 (%) | Độ rộng TB (kW) | Pinball P10 | Pinball P50 | Pinball P90 | Pinball TB (kW) |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| validation | overall | 5017 | 88.18% | 4.09% | 7.73% | 1.5419 | 0.0759 | 0.1995 | 0.1195 | 0.1316 |
+| validation | high_load | 583 | 44.77% | 0.00% | 55.23% | 1.9478 | 0.2099 | 0.6268 | 0.2928 | 0.3765 |
+| validation | normal_load | 4434 | 93.89% | 4.62% | 1.49% | 1.4885 | 0.0583 | 0.1433 | 0.0967 | 0.0994 |
+| test | overall | 4900 | 90.49% | 5.47% | 4.04% | 1.4623 | 0.0579 | 0.1633 | 0.1099 | 0.1104 |
+| test | high_load | 226 | 38.05% | 0.00% | 61.95% | 1.8995 | 0.2130 | 0.6550 | 0.3219 | 0.3966 |
+| test | normal_load | 4674 | 93.03% | 5.73% | 1.24% | 1.4412 | 0.0504 | 0.1395 | 0.0997 | 0.0965 |
+
+- **Giả thuyết phân tích quan sát**: Tại phân khúc phụ tải cao, độ phủ thực nghiệm giảm sâu (38.05% trên Test và 44.77% trên Validation), với trên 55–61% số giờ đỉnh nhọn thực tế vượt ra ngoài biên trên P90. Đây có thể là hệ quả của việc phân phối tải có đuôi rất dày khi các thiết bị công suất lớn bật đột ngột, khiến mô hình phân vị toàn dải bị co cụm về phía trung vị. Đây là một giả thuyết phân tích quan sát, không phải là kết luận nhân quả đã được chứng minh thực nghiệm.
+- **Cảnh báo giới hạn**: Độ phủ thực nghiệm tổng thể cao (90.49%) không đồng nghĩa với bảo đảm an toàn ở các giờ đỉnh nhọn hay bảo đảm hiệu chuẩn hoàn hảo (calibrated uncertainty). Không sử dụng khoảng dự báo này cho các bài toán an toàn cắt tải mà không có hệ số đệm mở rộng.
+
+### 8.4 Gói phát hành serving v2 & API mở rộng
+- Đóng gói có mã băm SHA256 cho toàn bộ mô hình và bảng kết quả tại `deploy/bundle/`.
+- Endpoint `POST /v1/predict_interval` hỗ trợ suy luận điểm và dải phân vị.
+- Tính trùng khớp số học giữa `historical_replay` và `provided_history` đòi hỏi ngữ cảnh lịch sử tương đương (ví dụ 336 giờ cung cấp ngữ cảnh đầy đủ cho cửa sổ 168 giờ và việc bù khuyết giới hạn); ca kiểm thử tự động `test_predict_interval_provided_history_parity` là bằng chứng kiểm chứng cụ thể cho dòng kiểm tra đã chọn.
+- Chi tiết báo cáo thực nghiệm xem tại [ML03_RESULTS.md](ML03_RESULTS.md).

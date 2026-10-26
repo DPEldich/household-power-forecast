@@ -12,6 +12,7 @@ dist/
 build/
 data/
 artifacts/models/
+artifacts/experimental/**/models/
 *.log
 *.egg-info/
 .streamlit/secrets.toml

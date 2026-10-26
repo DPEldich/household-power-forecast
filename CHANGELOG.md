@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-26 — ML-03 load dynamics and quantile forecasts, owner reviewed
+
+Implemented through the user-requested antigravity-task-runner skill, model `gemini-3.8-flash-high`, conversation `38f8b4cf-c23d-4afa-96a7-f49782408c6a`. One sequential conversation, two owner refactor loops; Codex independently reviewed and completed closeout. Baseline HEAD was `5276c29` with a clean tree.
+
+Added six causal load-dynamics features, a separate bounded experiment runner, three expanding CV folds with training-only thresholds, validation confirmation and baseline fallback, pre-test frozen selection metadata, P10/P50/P90 quantile models, interval diagnostics/figures and CSV-bound Vietnamese reports. Added an optional checksummed serving extension, interval endpoint, dynamic Streamlit comparisons and interval chart. Original seven-model pipeline, metrics and models are preserved; all 16 original artifact hashes match the preflight snapshot.
+
+Point candidate improved overall validation MAE (0.369626 vs 0.370641 kW) but worsened high-load MAE (0.840934 vs 0.835970 kW), so it was rejected. Baseline XGBoost remains the point model. Test interval coverage is 90.4898% overall and 38.0531% across 226 high-load hours, mean widths 1.4623 and 1.8995 kW respectively. These are descriptive results on a reused historical benchmark; no new independent test or calibrated coverage guarantee is claimed.
+
+Owner review fixed actual fitted-pipeline feature-order verification, report transcription errors, misleading confidence-interval labels, hardcoded outcome text, missing response-version/stored-prediction guards and weak tests. Independent verification: full pytest 80 passed in 37.29s (three existing non-failing warnings), pip check clean, exported `uci-hourly-9c37e566d5f6e848` with all seven original and four experimental estimators matching all 4,900 stored test rows. Independently recomputed six uncertainty subsets, three fold thresholds and rejected-candidate validation metrics; inspected the generated interval figure. Full-row report assertions protect counts, coverage, width and each pinball loss. See ML03_REVIEW.md.
+
+Completed locally; no commit, push, cloud publication, weather data, multi-household data, or 24h forecasting was included. Existing ML-02 cloud account blocker is unchanged. Experimental model files under artifacts are ignored; the serving bundle includes the models required for inference.
+
 ## 2026-10-25 — ML-02 FastAPI + Streamlit deployment architecture
 
 Implemented directly by Codex following the teacher's proposed architecture and Pybites reference. Streamlit is now an HTTP client only; FastAPI owns model loading, history and inference. Added bounded/validated custom-history forecasts, optional API key, explicit version mismatch responses and immutable checksum-verified serving bundle. Training/validation protocol and frozen test results remain unchanged.

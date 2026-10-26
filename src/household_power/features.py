@@ -129,3 +129,66 @@ def build_features(
     valid_mask = after_warmup & is_valid_target
 
     return features, y, valid_mask
+
+
+EXTENDED_LOAD_FEATURES = [
+    "diff_1h",
+    "diff_24h",
+    "rolling_max_3",
+    "rolling_max_24",
+    "trend_3h",
+    "missing_lag1",
+]
+
+# Note: In build_features, rolling columns are added per-window (mean_w, std_w).
+# BASE_FEATURE_NAMES lists the exact column order produced by build_features.
+BASE_FEATURE_NAMES = [
+    "lag_1", "lag_2", "lag_3", "lag_24", "lag_48", "lag_168",
+    "rolling_mean_3", "rolling_std_3",
+    "rolling_mean_24", "rolling_std_24",
+    "rolling_mean_168", "rolling_std_168",
+    "hour", "dayofweek", "month", "is_weekend",
+    "sin_hour", "cos_hour", "sin_dow", "cos_dow",
+]
+
+EXTENDED_FEATURES = BASE_FEATURE_NAMES + EXTENDED_LOAD_FEATURES
+
+
+def build_extended_features(
+    df: pd.DataFrame,
+    input_col: str = "active_power_ffill3",
+) -> Tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """Generate extended causal load-dynamics features along with baseline features.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with continuous DatetimeIndex at hourly frequency,
+        containing input_col and 'target' column.
+    input_col : str
+        Column to compute historical stats from.
+
+    Returns
+    -------
+    X : pd.DataFrame
+        Extended feature matrix (26 features) indexed by target hour s.
+    y : pd.Series
+        Target active power kW for interval [s, s+1h).
+    valid_mask : pd.Series (bool)
+        Mask indicating rows where target is valid AND beyond 168h warmup.
+    """
+    features, y, valid_mask = build_features(df, input_col=input_col)
+
+    series = df[input_col]
+    shifted_series = series.shift(1)
+
+    ext = pd.DataFrame(index=df.index)
+    ext["diff_1h"] = series.shift(1) - series.shift(2)
+    ext["diff_24h"] = series.shift(1) - series.shift(25)
+    ext["rolling_max_3"] = shifted_series.rolling(window=3, min_periods=1).max()
+    ext["rolling_max_24"] = shifted_series.rolling(window=24, min_periods=1).max()
+    ext["trend_3h"] = series.shift(1) - shifted_series.rolling(window=3, min_periods=1).mean()
+    ext["missing_lag1"] = series.shift(1).isna().astype(float)
+
+    full_ext = pd.concat([features, ext], axis=1)
+    return full_ext, y, valid_mask
