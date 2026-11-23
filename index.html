@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Bản trình bày ngắn các thí nghiệm, phân tích kết quả và giải pháp cuối cùng của đồ án dự báo phụ tải điện hộ gia đình.">
+  <title>Các thí nghiệm và kết luận đồ án dự báo phụ tải điện</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: #222; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; }
+    main { max-width: 920px; margin: 24px auto; padding: 0 20px; }
+    h1, h2, h3, p, ul, table { font-size: 14px; }
+    h1 { margin: 0 0 8px; text-transform: uppercase; }
+    h2 { margin: 0 0 8px; }
+    p { margin: 7px 0; }
+    section { padding: 16px 0; border-top: 1px solid #bbb; }
+    header { padding-bottom: 14px; }
+    .meta, footer { color: #444; }
+    .time { font-weight: normal; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #aaa; padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    th { background: #eee; }
+    .number { text-align: right; white-space: nowrap; }
+    .selected { background: #f1f1f1; font-weight: bold; }
+    .conclusion { padding: 8px 12px; border-left: 3px solid #444; background: #f5f5f5; }
+    ul { margin: 7px 0; padding-left: 22px; }
+    li { margin: 4px 0; }
+    a { color: #164e82; text-underline-offset: 2px; }
+    a:focus-visible { outline: 2px solid #164e82; outline-offset: 3px; }
+    footer { border-top: 1px solid #bbb; padding: 12px 0; }
+    @media (max-width: 600px) {
+      main { margin: 16px auto; padding: 0 12px; }
+      th, td { padding: 5px; }
+    }
+    @media print {
+      @page { margin: 15mm; }
+      main { max-width: none; margin: 0; padding: 0; }
+      section { padding: 10px 0; }
+      h1, h2 { break-after: avoid; }
+      tr, .conclusion { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Các thí nghiệm và kết luận đồ án dự báo phụ tải điện</h1>
+      <p><strong>Đề tài:</strong> Dự báo công suất tiêu thụ điện trung bình của một hộ gia đình trong giờ tiếp theo.</p>
+      <p class="meta"><strong>Thời lượng dự kiến: 4 phút 30 giây.</strong> Trình bày nhận xét và phần chốt; các bảng dùng để đối chiếu, không cần đọc từng dòng.</p>
+    </header>
+
+    <section aria-labelledby="protocol">
+      <h2 id="protocol">Mở đầu — Cách đánh giá <span class="time">(25 giây)</span></h2>
+      <p>Dữ liệu UCI được tổng hợp theo giờ. Chia theo thời gian: <strong>70% Train, 15% Validation, 15% Test</strong>; dùng 3 fold kiểm định mở rộng trong Train. Đầu vào chỉ lấy thông tin trước giờ dự báo.</p>
+      <p>Chọn mô hình bằng Validation; báo cáo Test trên cùng <strong>4.900 giờ</strong>. MAE là sai số tuyệt đối trung bình, đơn vị kW; càng thấp càng tốt.</p>
+    </section>
+
+    <section aria-labelledby="models">
+      <h2 id="models">1. So sánh 7 mô hình — Chốt XGBoost <span class="time">(55 giây)</span></h2>
+      <p><strong>Mục tiêu:</strong> Kiểm tra mô hình học máy có tốt hơn hai cách dự báo đơn giản hay không.</p>
+      <table>
+        <thead>
+          <tr><th scope="col">Mô hình</th><th scope="col" class="number">MAE Validation</th><th scope="col" class="number">MAE Test</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Persistence: lấy giá trị giờ trước</td><td class="number">0,4636</td><td class="number">0,3892</td></tr>
+          <tr><td>Seasonal Naive: lấy cùng giờ hôm trước</td><td class="number">0,6639</td><td class="number">0,5100</td></tr>
+          <tr><td>Linear Regression</td><td class="number">0,4152</td><td class="number">0,3567</td></tr>
+          <tr><td>Ridge</td><td class="number">0,4152</td><td class="number">0,3567</td></tr>
+          <tr><td>Random Forest</td><td class="number">0,3740</td><td class="number">0,3311</td></tr>
+          <tr><td>Gradient Boosting</td><td class="number">0,3756</td><td class="number">0,3279</td></tr>
+          <tr class="selected"><td>XGBoost</td><td class="number">0,3706</td><td class="number">0,3242</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Phân tích:</strong> Các mô hình cây cho sai số thấp hơn hồi quy tuyến tính, gợi ý quan hệ đầu vào–phụ tải có tính phi tuyến. Giá trị giờ trước hữu ích hơn cùng giờ hôm trước trong dữ liệu này.</p>
+      <p class="conclusion"><strong>Chốt:</strong> Chọn XGBoost vì MAE Validation thấp nhất. Trên Test, MAE giảm <strong>16,7%</strong> so với Persistence.</p>
+    </section>
+
+    <section aria-labelledby="ablation">
+      <h2 id="ablation">2. Cắt bỏ nhóm đặc trưng — Giữ đủ 20 đặc trưng <span class="time">(40 giây)</span></h2>
+      <p><strong>Đã làm:</strong> Giữ mô hình XGBoost, thay đổi nhóm đầu vào để xem thông tin nào có ích.</p>
+      <table>
+        <thead>
+          <tr><th scope="col">Bộ đặc trưng</th><th scope="col" class="number">Số lượng</th><th scope="col" class="number">MAE Validation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Chỉ thông tin lịch</td><td class="number">8</td><td class="number">0,5046</td></tr>
+          <tr><td>Chỉ giá trị trễ và thống kê trượt</td><td class="number">12</td><td class="number">0,3957</td></tr>
+          <tr><td>Giá trị trễ và lịch, bỏ thống kê trượt</td><td class="number">14</td><td class="number">0,3724</td></tr>
+          <tr class="selected"><td>Đầy đủ: giá trị trễ + thống kê trượt + lịch</td><td class="number">20</td><td class="number">0,3706</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Phân tích:</strong> Chỉ biết giờ/ngày chưa đủ; lịch sử tiêu thụ giúp giảm sai số rõ rệt. Thống kê trượt mang lại cải thiện nhỏ khi đã có giá trị trễ và lịch.</p>
+      <p class="conclusion"><strong>Chốt:</strong> Giữ đủ 20 đặc trưng. Cấu hình này cũng có MAE Test thấp nhất trong nhóm ablation.</p>
+    </section>
+
+    <section aria-labelledby="extensions">
+      <h2 id="extensions">3. Hai phương án cải tiến — Chưa thay thế mô hình gốc <span class="time">(65 giây)</span></h2>
+      <p><strong>Mục tiêu:</strong> Cải thiện dự báo giờ tải cao, xác định theo ngưỡng P90 của dữ liệu huấn luyện.</p>
+      <table>
+        <thead>
+          <tr><th scope="col">Cấu hình XGBoost</th><th scope="col" class="number">MAE CV tổng thể</th><th scope="col" class="number">MAE CV tải cao</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Gốc: 20 đặc trưng</td><td class="number">0,3760</td><td class="number">1,0469</td></tr>
+          <tr><td>Thêm 6 đặc trưng biến động tải</td><td class="number">0,3737</td><td class="number">1,0426</td></tr>
+          <tr><td>26 đặc trưng + trọng số tải cao 1,5</td><td class="number">0,3803</td><td class="number">0,9752</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Phân tích:</strong> Tăng trọng số giúp giảm lỗi tải cao, nhưng MAE tổng thể tăng <strong>1,15%</strong>, vượt mức cho phép 1%, nên bị loại ở CV.</p>
+      <p>Phương án thêm 6 đặc trưng qua CV, nhưng khi xác nhận bằng Validation, MAE tải cao tăng từ <strong>0,8360 lên 0,8409 kW</strong>, dù MAE tổng thể giảm nhẹ.</p>
+      <p class="conclusion"><strong>Chốt:</strong> Cả hai phương án chưa đạt đầy đủ tiêu chí đã đặt trước. Giữ XGBoost gốc; cải thiện trung bình chưa đủ nếu lỗi tải cao tăng.</p>
+    </section>
+
+    <section aria-labelledby="intervals">
+      <h2 id="intervals">4. Dự báo phân vị P10/P50/P90 — Bổ sung thông tin bất định <span class="time">(45 giây)</span></h2>
+      <p><strong>Đã làm:</strong> Huấn luyện 3 mô hình phân vị để tạo khoảng P10–P90, có độ phủ danh định 80%; xử lý để các phân vị không âm và đúng thứ tự.</p>
+      <table>
+        <thead>
+          <tr><th scope="col">Phân khúc Test</th><th scope="col" class="number">Độ phủ thực tế</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Toàn bộ 4.900 giờ</td><td class="number">90,49%</td></tr>
+          <tr><td>226 giờ tải cao</td><td class="number">38,05%</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Phân tích:</strong> Độ phủ toàn bộ cao hơn mức danh định, nhưng khoảng dự báo bỏ sót nhiều giờ tải cao. Chỉ nhìn chỉ số tổng thể sẽ che khuất hạn chế này.</p>
+      <p class="conclusion"><strong>Chốt:</strong> Giữ dải phân vị làm thông tin tham khảo; chưa đủ tin cậy để bảo đảm dự báo các đỉnh tải.</p>
+    </section>
+
+    <section aria-labelledby="overall">
+      <h2 id="overall">Tổng quát — Giải pháp cuối cùng <span class="time">(40 giây)</span></h2>
+      <ul>
+        <li><strong>Phạm vi đã hoàn thành:</strong> 4 nhóm thí nghiệm gồm so sánh 7 mô hình, 4 bộ đặc trưng, 2 phương án cải tiến và 3 mô hình phân vị. Cấu hình gốc được tái dùng để đối chiếu, không đếm lại thành thí nghiệm mới.</li>
+        <li><strong>Kết quả chung:</strong> Lịch sử tiêu thụ là thông tin quan trọng; XGBoost kết hợp đủ 20 đặc trưng cho kết quả tốt nhất trong các lựa chọn đã đánh giá. Thêm đặc trưng hoặc trọng số chưa chắc cải thiện đồng đều.</li>
+        <li><strong>Giải pháp chốt:</strong> XGBoost dự báo trước một giờ, MAE Test <strong>0,3242 kW</strong>; phục vụ qua FastAPI và giao diện Streamlit, có thêm dải P10–P90 tham khảo.</li>
+        <li><strong>Giới hạn:</strong> Dữ liệu của một hộ gia đình; giờ tải cao vẫn khó dự báo. ML-03 tái sử dụng Test lịch sử, chưa có kiểm chứng trên dữ liệu độc lập mới.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p><strong>Nguồn đối chiếu (không thuộc phần nói):</strong>
+        <a href="artifacts/metrics/validation_metrics.csv">Mô hình</a> ·
+        <a href="artifacts/metrics/test_metrics.csv">Test</a> ·
+        <a href="artifacts/metrics/ablation_metrics.csv">Ablation</a> ·
+        <a href="ML03_RESULTS.md">Kết quả ML-03</a> ·
+        <a href="artifacts/experimental/ml03/metrics/uncertainty_metrics.csv">Phân vị</a>.
+        Số liệu được làm tròn; các bảng MAE dùng đơn vị kW. Thời lượng thực tế tùy tốc độ trình bày.
+      </p>
+    </footer>
+  </main>
+</body>
+</html>
